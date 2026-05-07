@@ -18,6 +18,7 @@
  * DYNAMICS_DIM = 4
  */
 
+
 struct NNDynamicsParams : public DynamicsParams
 {
   enum class StateIndex : int
@@ -68,12 +69,14 @@ struct NNDynamicsParams : public DynamicsParams
 using namespace MPPI_internal;
 
 template <int S_DIM, int C_DIM, int K_DIM>
-class NeuralNetModel : public Dynamics<NeuralNetModel<S_DIM, C_DIM, K_DIM>, NNDynamicsParams>
+class NeuralNetModel : public Dynamics<NeuralNetModel<S_DIM, C_DIM, K_DIM>,
+                                       NNDynamicsParams>
 {
 public:
   // TODO remove duplication of calculation of values, pull from the structure
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  using PARENT_CLASS = Dynamics<NeuralNetModel<S_DIM, C_DIM, K_DIM>, NNDynamicsParams>;
+  using PARENT_CLASS = Dynamics<NeuralNetModel<S_DIM, C_DIM, K_DIM>,
+                                NNDynamicsParams>;
 
   // Define Eigen fixed size matrices
   using state_array = typename PARENT_CLASS::state_array;
@@ -82,7 +85,7 @@ public:
   using dfdx = typename PARENT_CLASS::dfdx;
   using dfdu = typename PARENT_CLASS::dfdu;
 
-  static const int DYNAMICS_DIM = S_DIM - K_DIM;  ///< number of inputs from state
+  static const int DYNAMICS_DIM = S_DIM - K_DIM;               ///< number of inputs from state
 
   NeuralNetModel(cudaStream_t stream = 0);
   NeuralNetModel(std::array<float2, C_DIM> control_rngs, cudaStream_t stream = 0);
@@ -107,8 +110,7 @@ public:
     return helper_->getThetaPtr();
   }
 
-  FNNHelper<>* getHelperPtr()
-  {
+  FNNHelper<>* getHelperPtr() {
     return helper_;
   }
 
@@ -145,8 +147,6 @@ public:
   __device__ void computeKinematics(float* state, float* state_der);
 
   state_array stateFromMap(const std::map<std::string, float>& map) override;
-  __host__ __device__ int getGrdSharedSizeBytes() const;
-  __host__ __device__ int getBlkSharedSizeBytes() const;
 
 private:
   FNNHelper<>* helper_ = nullptr;

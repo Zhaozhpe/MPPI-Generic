@@ -7,6 +7,8 @@ NeuralNetModel<S_DIM, C_DIM, K_DIM>::NeuralNetModel(std::array<float2, C_DIM> co
 {
   std::vector<int> args{ 6, 32, 32, 4 };
   helper_ = new FNNHelper<>(args, stream);
+  this->SHARED_MEM_REQUEST_GRD_BYTES = helper_->getGrdSharedSizeBytes();
+  this->SHARED_MEM_REQUEST_BLK_BYTES = helper_->getBlkSharedSizeBytes();
 }
 
 template <int S_DIM, int C_DIM, int K_DIM>
@@ -14,6 +16,8 @@ NeuralNetModel<S_DIM, C_DIM, K_DIM>::NeuralNetModel(cudaStream_t stream) : PAREN
 {
   std::vector<int> args{ 6, 32, 32, 4 };
   helper_ = new FNNHelper<>(args, stream);
+  this->SHARED_MEM_REQUEST_GRD_BYTES = helper_->getGrdSharedSizeBytes();
+  this->SHARED_MEM_REQUEST_BLK_BYTES = helper_->getBlkSharedSizeBytes();
 }
 
 template <int S_DIM, int C_DIM, int K_DIM>
@@ -169,13 +173,7 @@ template <int S_DIM, int C_DIM, int K_DIM>
 __device__ void NeuralNetModel<S_DIM, C_DIM, K_DIM>::initializeDynamics(float* state, float* control, float* output,
                                                                         float* theta_s, float t_0, float dt)
 {
-  if (output)
-  {
-    for (int i = 0; i < this->OUTPUT_DIM && i < this->STATE_DIM; i++)
-    {
-      output[i] = state[i];
-    }
-  }
+  PARENT_CLASS::initializeDynamics(state, control, output, theta_s, t_0, dt);
   helper_->initialize(theta_s);
 }
 
@@ -192,16 +190,4 @@ NeuralNetModel<S_DIM, C_DIM, K_DIM>::stateFromMap(const std::map<std::string, fl
   s(S_INDEX(BODY_VEL_Y)) = map.at("VEL_Y");
   s(S_INDEX(YAW_RATE)) = map.at("OMEGA_Z");
   return s;
-}
-
-template <int S_DIM, int C_DIM, int K_DIM>
-__host__ __device__ int NeuralNetModel<S_DIM, C_DIM, K_DIM>::getGrdSharedSizeBytes() const
-{
-  return helper_->getGrdSharedSizeBytes();
-}
-
-template <int S_DIM, int C_DIM, int K_DIM>
-__host__ __device__ int NeuralNetModel<S_DIM, C_DIM, K_DIM>::getBlkSharedSizeBytes() const
-{
-  return helper_->getBlkSharedSizeBytes();
 }

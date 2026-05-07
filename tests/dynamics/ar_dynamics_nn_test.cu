@@ -222,14 +222,6 @@ TEST(ARNeuralNetDynamics, UpdateModelTest)
 TEST(ARNeuralNetDynamics, LoadModelTest)
 {
   NeuralNetModel<7, 2, 3> model;
-  EXPECT_EQ(model.getGrdSharedSizeBytes(), model.getHelperPtr()->getGrdSharedSizeBytes()) << "Shared mem request "
-                                                                                             "doesn't match between "
-                                                                                             "Dynamics and Neural "
-                                                                                             "Network";
-  EXPECT_EQ(model.getBlkSharedSizeBytes(), model.getHelperPtr()->getBlkSharedSizeBytes()) << "Shared mem request "
-                                                                                             "doesn't match between "
-                                                                                             "Dynamics and Neural "
-                                                                                             "Network";
   model.GPUSetup();
 
   // TODO procedurally generate a NN in python and save and run like costs
@@ -245,15 +237,6 @@ TEST(ARNeuralNetDynamics, LoadModelTest)
   std::array<float, 1412> theta_result = {};
   std::array<int, 6> stride_result = {};
   std::array<int, 4> net_structure_result = {};
-
-  EXPECT_EQ(model.getGrdSharedSizeBytes(), model.getHelperPtr()->getGrdSharedSizeBytes()) << "Shared mem request "
-                                                                                             "doesn't match between "
-                                                                                             "Dynamics and Neural "
-                                                                                             "Network";
-  EXPECT_EQ(model.getBlkSharedSizeBytes(), model.getHelperPtr()->getBlkSharedSizeBytes()) << "Shared mem request "
-                                                                                             "doesn't match between "
-                                                                                             "Dynamics and Neural "
-                                                                                             "Network";
 
   // launch kernel
   launchParameterCheckTestKernel<NeuralNetModel<7, 2, 3>, 1412, 6, 4>(model, theta_result, stride_result,

@@ -17,16 +17,6 @@ void Dynamics<CLASS_T, PARAMS_T>::paramsToDevice(bool synchronize)
 }
 
 template <class CLASS_T, class PARAMS_T>
-void Dynamics<CLASS_T, PARAMS_T>::setDefaultControlRanges()
-{
-  for (int i = 0; i < CONTROL_DIM; i++)
-  {
-    control_rngs_[i].x = -FLT_MAX;
-    control_rngs_[i].y = FLT_MAX;
-  }
-}
-
-template <class CLASS_T, class PARAMS_T>
 void Dynamics<CLASS_T, PARAMS_T>::setControlRanges(std::array<float2, CONTROL_DIM>& control_rngs, bool synchronize)
 {
   for (int i = 0; i < CONTROL_DIM; i++)

@@ -561,7 +561,7 @@ TEST_F(RacerDubinsElevationLSTMSteeringTest, TestStep)
 
 TEST_F(RacerDubinsElevationLSTMSteeringTest, TestStepGPUvsCPUNoNetwork)
 {
-  const int num_rollouts = 1024;
+  const int num_rollouts = 1000;
   const float dt = 0.1f;
   CudaCheckError();
   using DYN = RacerDubinsElevationLSTMSteering;
@@ -664,7 +664,7 @@ TEST_F(RacerDubinsElevationLSTMSteeringTest, TestStepGPUvsCPUNoNetwork)
 
 TEST_F(RacerDubinsElevationLSTMSteeringTest, TestStepGPUvsCPU)
 {
-  const int num_rollouts = 64;
+  const int num_rollouts = 60;
   const float dt = 0.1f;
   CudaCheckError();
   using DYN = RacerDubinsElevationLSTMSteering;
@@ -720,7 +720,7 @@ TEST_F(RacerDubinsElevationLSTMSteeringTest, TestStepGPUvsCPUReverse)
 {
   using DYN = RacerDubinsElevationLSTMSteering;
 
-  const int num_rollouts = 1024;
+  const int num_rollouts = 1000;
   const float dt = 0.1f;
   CudaCheckError();
   RacerDubinsElevationLSTMSteering dynamics = RacerDubinsElevationLSTMSteering(mppi::tests::steering_lstm);
@@ -778,7 +778,7 @@ TEST_F(RacerDubinsElevationLSTMSteeringTest, compareToElevationWithoutSteering)
   using DYN = RacerDubinsElevationLSTMSteering;
   using DYN_PARAMS = DYN::DYN_PARAMS_T;
 
-  const int num_rollouts = 1024;
+  const int num_rollouts = 1000;
   const float dt = 0.1f;
   CudaCheckError();
   auto dynamics = RacerDubinsElevationLSTMSteering(3, 20, init_output_layers, 4, 4, output_layers, 11);

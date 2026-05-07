@@ -40,11 +40,6 @@ public:
   {
   }
 
-  DynamicsTester(DynamicsTesterParams<STATE_DIM, CONTROL_DIM>& params, cudaStream_t stream = 0)
-    : PARENT_CLASS(params, stream)
-  {
-  }
-
   DynamicsTester(std::array<float2, CONTROL_DIM> control_rngs, cudaStream_t stream = 0)
     : PARENT_CLASS(control_rngs, stream)
   {
@@ -140,18 +135,6 @@ TEST(Dynamics, setParamsCPU)
   EXPECT_EQ(params_result.var_4.y, params.var_4.y);
   EXPECT_EQ(params_result.var_4.z, params.var_4.z);
   EXPECT_EQ(params_result.var_4.w, params.var_4.w);
-
-  // Test params constructor
-  params.var_4.z = 1.5;
-  DynamicsTester<> tester_2 = DynamicsTester<>(params);
-  params_result = tester_2.getParams();
-
-  EXPECT_EQ(params_result.var_1, params.var_1);
-  EXPECT_EQ(params_result.var_2, params.var_2);
-  EXPECT_EQ(params_result.var_4.x, params.var_4.x);
-  EXPECT_EQ(params_result.var_4.y, params.var_4.y);
-  EXPECT_EQ(params_result.var_4.z, params.var_4.z);
-  EXPECT_EQ(params_result.var_4.w, params.var_4.w);
 }
 
 TEST(Dynamics, setParamsGPU)
@@ -172,19 +155,6 @@ TEST(Dynamics, setParamsGPU)
 
   tester.setParams(params);
   launchParameterTestKernel<DynamicsTester<>, DynamicsTesterParams<>>(tester, params_result);
-
-  EXPECT_EQ(params_result.var_1, params.var_1);
-  EXPECT_EQ(params_result.var_2, params.var_2);
-  EXPECT_EQ(params_result.var_4.x, params.var_4.x);
-  EXPECT_EQ(params_result.var_4.y, params.var_4.y);
-  EXPECT_EQ(params_result.var_4.z, params.var_4.z);
-  EXPECT_EQ(params_result.var_4.w, params.var_4.w);
-
-  // Test params constructor
-  params.var_4.z = 1.5;
-  DynamicsTester<> tester_2 = DynamicsTester<>(params);
-  tester_2.GPUSetup();
-  launchParameterTestKernel<DynamicsTester<>, DynamicsTesterParams<>>(tester_2, params_result);
 
   EXPECT_EQ(params_result.var_1, params.var_1);
   EXPECT_EQ(params_result.var_2, params.var_2);
@@ -222,23 +192,8 @@ TEST(Dynamics, SetControlRangesDefault)
   auto ranges_2 = tester.getControlRanges();
   for (int i = 0; i < ranges_2.size(); i++)
   {
-    EXPECT_FLOAT_EQ(ranges_2[i].x, -FLT_MAX);
-    EXPECT_FLOAT_EQ(ranges_2[i].y, FLT_MAX);
-  }
-
-  auto params3 = tester.getParams();
-  DynamicsTester<> tester_3 = DynamicsTester<>(params3);
-  auto ranges_3 = tester_3.getControlRanges();
-  EXPECT_FLOAT_EQ(ranges_3[0].x, -FLT_MAX);
-  EXPECT_FLOAT_EQ(ranges_3[0].y, FLT_MAX);
-
-  auto params4 = tester_2.getParams();
-  DynamicsTester<4, 2> tester_4 = DynamicsTester<4, 2>(params4);
-  auto ranges_4 = tester_4.getControlRanges();
-  for (int i = 0; i < ranges_4.size(); i++)
-  {
-    EXPECT_FLOAT_EQ(ranges_4[i].x, -FLT_MAX);
-    EXPECT_FLOAT_EQ(ranges_4[i].y, FLT_MAX);
+    EXPECT_FLOAT_EQ(ranges[i].x, -FLT_MAX);
+    EXPECT_FLOAT_EQ(ranges[i].y, FLT_MAX);
   }
 }
 

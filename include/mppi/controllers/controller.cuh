@@ -326,9 +326,8 @@ public:
    * @param rel_time
    * @return
    */
-  virtual control_array getCurrentControl(Eigen::Ref<state_array> state, double rel_time,
-                                          Eigen::Ref<state_array> target_nominal_state,
-                                          Eigen::Ref<control_trajectory> c_traj, TEMPLATED_FEEDBACK_STATE& fb_state)
+  virtual control_array getCurrentControl(state_array& state, double rel_time, state_array& target_nominal_state,
+                                          control_trajectory& c_traj, TEMPLATED_FEEDBACK_STATE& fb_state)
   {
     // MPPI control
     control_array u_ff = interpolateControls(rel_time, c_traj);
@@ -349,8 +348,7 @@ public:
    * @param steps - number of dt's to slide control sequence forward
    * Slide the control sequence forwards by 'steps'
    */
-  virtual void slideControlSequence(int steps)
-  {
+  virtual void slideControlSequence(int steps) {
     // Save the control history
     this->saveControlHistoryHelper(steps, this->control_, this->control_history_);
 
@@ -362,7 +360,7 @@ public:
    * @param rel_time time since the solution was calculated
    * @return
    */
-  virtual control_array interpolateControls(double rel_time, Eigen::Ref<control_trajectory> c_traj)
+  virtual control_array interpolateControls(double rel_time, control_trajectory& c_traj)
   {
     int lower_idx = (int)(rel_time / getDt());
     int upper_idx = lower_idx + 1;
@@ -372,10 +370,14 @@ public:
     control_array prev_cmd = c_traj.col(lower_idx);
     control_array next_cmd = c_traj.col(upper_idx);
     interpolated_control = (1 - alpha) * prev_cmd + alpha * next_cmd;
+
+    // printf("prev: %d %f, %f\n", lower_idx, prev_cmd[0], prev_cmd[1]);
+    // printf("next: %d %f, %f\n", upper_idx, next_cmd[0], next_cmd[1]);
+    // printf("smoother: %f\n", alpha);
     return interpolated_control;
   }
 
-  virtual state_array interpolateState(Eigen::Ref<state_trajectory> s_traj, double rel_time)
+  virtual state_array interpolateState(state_trajectory& s_traj, double rel_time)
   {
     int lower_idx = (int)(rel_time / getDt());
     int upper_idx = lower_idx + 1;
@@ -390,8 +392,8 @@ public:
    * @param rel_time
    * @return
    */
-  virtual control_array interpolateFeedback(Eigen::Ref<state_array> state, Eigen::Ref<state_array> target_nominal_state,
-                                            double rel_time, TEMPLATED_FEEDBACK_STATE& fb_state)
+  virtual control_array interpolateFeedback(state_array& state, state_array& target_nominal_state, double rel_time,
+                                            TEMPLATED_FEEDBACK_STATE& fb_state)
   {
     return fb_controller_->interpolateFeedback_(state, target_nominal_state, rel_time, fb_state);
   }
@@ -835,7 +837,6 @@ public:
   {
     bool change_seed = p.seed_ != params_.seed_;
     bool change_num_timesteps = p.num_timesteps_ != params_.num_timesteps_;
-    bool change_dt = p.dt_ != params_.dt_;
     // bool change_std_dev = p.control_std_dev_ != params_.control_std_dev_;
     params_ = p;
     if (change_num_timesteps)
@@ -845,10 +846,6 @@ public:
     if (change_seed)
     {
       setSeedCUDARandomNumberGen(params_.seed_);
-    }
-    if (change_dt)
-    {
-      fb_controller_->setDt(p.dt_);
     }
   }
 

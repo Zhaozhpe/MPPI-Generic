@@ -4,21 +4,14 @@
 #include <mppi/utils/math_utils.h>
 #include <mppi/utils/cuda_math_utils.cuh>
 
-// CUDA barriers were first implemented in CUDA 11
+// CUDA barriers were first implemented in Cuda 11
 #if defined(CMAKE_USE_CUDA_BARRIERS) && defined(CUDART_VERSION) && CUDART_VERSION > 11000
 #include <cuda/barrier>
 using barrier = cuda::barrier<cuda::thread_scope_block>;
 
-// Turn on/off various CUDA barriers from CMake configuration
-#ifdef CMAKE_USE_CUDA_BARRIERS_DYN
 #define USE_CUDA_BARRIERS_DYN
-#endif
-#ifdef CMAKE_USE_CUDA_BARRIERS_COST
-#define USE_CUDA_BARRIERS_COST
-#endif
-#ifdef CMAKE_USE_CUDA_BARRIERS_ROLLOUT
+// #define USE_CUDA_BARRIERS_COST
 #define USE_CUDA_BARRIERS_ROLLOUT
-#endif
 #endif
 
 #include <cooperative_groups.h>
@@ -537,14 +530,26 @@ __global__ void visualizeCostKernel(COST_T* __restrict__ costs, SAMPLING_T* __re
                                     const float* __restrict__ y_d, float* __restrict__ cost_traj_d,
                                     int* __restrict__ crash_status_d)
 {
+  // cost_traj_d is sampled_costs_d_
+  // crash_status_d is sampled_crash_status_d_
+
   // Get thread and block id
-  const int thread_idx = threadIdx.x;
-  const int thread_idy = threadIdx.y;
-  const int thread_idz = threadIdx.z;
-  const int global_idx = blockIdx.x;
+
+  // blockDim: (100, 1, 1)
+  const int thread_idx = threadIdx.x; // 0-99
+  const int thread_idy = threadIdx.y; // 0
+  const int thread_idz = threadIdx.z; // 0
+
+  const int global_idx = blockIdx.x; // 0-2047
   const int shared_idx = blockDim.x * thread_idz + thread_idx;
   const int distribution_idx = threadIdx.z;
-
+  
+  // Debug: Print the y_d pointer value and its first element from a designated thread.
+  // if (global_idx == 0 && threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0)
+  // {
+  //     printf("In visualizeCostKernel: y_d pointer = %p, first element = %f\n", y_d, y_d[0]);
+  // }
+  // printf("thread_idx = %d, thread_idy = %d, thread_idz = %d, global_idx = %d\n", thread_idx, thread_idy, thread_idz, global_idx);
   const int size_of_theta_c_bytes = calcClassSharedMemSize(costs, blockDim);
 
   // Create shared state and control arrays
@@ -552,6 +557,7 @@ __global__ void visualizeCostKernel(COST_T* __restrict__ costs, SAMPLING_T* __re
 
   float* y_shared = entire_buffer;
   float* u_shared = &y_shared[math::nearest_multiple_4(blockDim.x * blockDim.z * COST_T::OUTPUT_DIM)];
+  // blockDim.x is the number of threads in a block along the x‑direction (total number the timesteps), blockDim.z
   float* running_cost_shared = &u_shared[math::nearest_multiple_4(blockDim.x * blockDim.z * COST_T::CONTROL_DIM)];
   int* crash_status_shared =
       (int*)&running_cost_shared[math::nearest_multiple_4(blockDim.y * blockDim.z * num_timesteps)];
@@ -595,7 +601,9 @@ __global__ void visualizeCostKernel(COST_T* __restrict__ costs, SAMPLING_T* __re
   __syncthreads();
   for (int time_iter = 0; time_iter < max_time_iters; ++time_iter)
   {
-    int t = thread_idx + time_iter * blockDim.x;
+    // int t = thread_idx + time_iter * blockDim.x;
+    int t_intial = thread_idx + time_iter * blockDim.x;
+    int t = (global_idx > 0) ? t_intial + 1 : t_intial;
     cost_index = (thread_idz * num_rollouts + global_idx) * (num_timesteps) + t - 1;
     running_cost = &running_cost_shared[blockDim.x * (thread_idz * blockDim.y + thread_idy) + t - 1];
     if (COALESCE)
@@ -605,6 +613,13 @@ __global__ void visualizeCostKernel(COST_T* __restrict__ costs, SAMPLING_T* __re
           y_shared, blockDim.x * thread_idz * COST_T::OUTPUT_DIM, y_d,
           ((num_rollouts * thread_idz + global_idx) * num_timesteps + time_iter * blockDim.x) * COST_T::OUTPUT_DIM,
           COST_T::OUTPUT_DIM * amount_to_fill);
+      
+      // debug print
+      // int state_offset = ((num_rollouts * threadIdx.z + global_idx) * num_timesteps + (threadIdx.x)) * COST_T::OUTPUT_DIM;
+      // if (global_idx <= 2 && threadIdx.x < 4)
+      // {
+      //     printf("Rollout %d: state_offset = %d, first element loaded = %f\n", global_idx, state_offset, y_d[state_offset]);
+      // }
     }
     else if (t < num_timesteps)
     {  // t = num_timesteps is the terminal state for outside this for-loop
@@ -622,12 +637,19 @@ __global__ void visualizeCostKernel(COST_T* __restrict__ costs, SAMPLING_T* __re
 #endif
 
     // Compute cost
-    if (t < num_timesteps)
+    if (t >= 1 && t < num_timesteps) // skip t == 0 to avoid value override
     {
       float cost = costs->computeRunningCost(y, u, t, theta_c, crash_status) +
                    sampling->computeLikelihoodRatioCost(u, theta_d, global_idx, t, distribution_idx, lambda, alpha);
       running_cost[0] = cost / (num_timesteps);
-      crash_status_d[global_idx * num_timesteps + t] = crash_status[0];
+      // crash_status_d[global_idx * num_timesteps + t] = crash_status[0];
+      crash_status_d[global_idx * num_timesteps + t - 1] = crash_status[0]; // modified, skip the state 0, match with cost
+
+      // debug print for specific t values (e.g., t==0 or t==num_timesteps-1)
+      // if (global_idx < 2 && t < 3)  // adjust condition as needed, e.g., for rollout 0 and first few timesteps
+      // {
+      //     printf("Rollout %d, y=%f, t=%d: cost=%f, cost_index=%d\n", global_idx, y[0], t, running_cost[0], cost_index);
+      // }
     }
 #ifdef USE_CUDA_BARRIERS_COST
     bar->arrive_and_wait();
@@ -653,8 +675,17 @@ __global__ void visualizeCostKernel(COST_T* __restrict__ costs, SAMPLING_T* __re
   // Compute terminal cost for each thread
   if (threadIdx.x == 0 && threadIdx.y == 0)
   {
-    cost_index = (threadIdx.z * num_rollouts + global_idx) * (num_timesteps + 1) + num_timesteps;
-    cost_traj_d[cost_index] = costs->terminalCost(y, theta_c) / (num_timesteps);
+    // cost_index = (threadIdx.z * num_rollouts + global_idx) * (num_timesteps + 1) + num_timesteps;
+    cost_index = (threadIdx.z * num_rollouts + global_idx) * (num_timesteps) + num_timesteps-1; // avoid override, write after the last rollout, and before the next one
+    float term_cost = costs->terminalCost(y, theta_c) / (num_timesteps);
+    cost_traj_d[cost_index] = term_cost;
+    // running_cost_shared[cost_index] = term_cost;
+
+    // debug print
+    // if (global_idx < 2)
+    // {
+    //   printf("Rollout %d: Terminal cost computed=%f, term_index=%d\n", global_idx, term_cost, cost_index);
+    // }
   }
   __syncthreads();
   // Copy to global memory
@@ -688,6 +719,25 @@ __global__ void visualizeCostKernel(COST_T* __restrict__ costs, SAMPLING_T* __re
           running_cost_shared[thread_idz * num_timesteps * blockDim.y + i];
     }
   }
+
+  __syncthreads();  // Ensure the copy is complete
+
+  // --- Now, re-write the terminal cost so it is not overwritten ---
+  if (threadIdx.x == 0 && threadIdx.y == 0)
+  {
+    // Base index for this rollout
+    int base_index = (thread_idz * num_rollouts + global_idx) * num_timesteps;
+    // Terminal cost should be stored at the last index
+    int term_index = base_index + (num_timesteps - 1);
+    float term_cost = costs->terminalCost(y, theta_c) / (num_timesteps);
+    cost_traj_d[term_index] = term_cost;
+    // Debug print to confirm the terminal cost has been applied after the copy
+    // if (global_idx < 2)
+    // {
+    //   printf("After copy, Rollout %d: Terminal cost overwritten=%f, term_index=%d\n", global_idx, term_cost, term_index);
+    // }
+  }
+  __syncthreads();
 }
 
 __global__ void normExpKernel(int num_rollouts, float* trajectory_costs_d, float lambda_inv, float baseline)

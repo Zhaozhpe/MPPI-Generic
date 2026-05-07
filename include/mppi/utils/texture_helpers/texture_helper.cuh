@@ -9,8 +9,6 @@
 #include <mppi/utils/cuda_math_utils.cuh>
 #include <mppi/utils/math_utils.h>
 
-#include <array>
-
 template <class DATA_T>
 struct TextureParams
 {

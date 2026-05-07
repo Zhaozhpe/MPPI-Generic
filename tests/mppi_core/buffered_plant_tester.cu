@@ -122,6 +122,10 @@ public:
   {
     return this->buffer_tau_;
   }
+  double getBufferDt()
+  {
+    return this->buffer_dt_;
+  }
   void setLastUsedUpdateTime(double time)
   {
     this->last_used_state_update_time_ = time;
@@ -194,13 +198,6 @@ TEST_F(BufferedPlantTest, Constructor)
   EXPECT_FLOAT_EQ(plant->getBufferDt(), 0.02);
 }
 
-TEST_F(BufferedPlantTest, setBufferDt)
-{
-  double new_buffer_dt = 30.0;
-  plant->setBufferDt(new_buffer_dt);
-  EXPECT_FLOAT_EQ(plant->getBufferDt(), new_buffer_dt);
-}
-
 TEST_F(BufferedPlantTest, interpNew)
 {
   Eigen::Vector3f pos = Eigen::Vector3f::Ones();
@@ -211,9 +208,7 @@ TEST_F(BufferedPlantTest, interpNew)
   MockDynamics::state_array state = MockDynamics::state_array::Random();
 
   EXPECT_CALL(mockDynamics, stateFromMap(testing::_)).Times(2).WillRepeatedly(testing::Return(state));
-  // Controls never calculated so no calls to controller in updateState()
-  EXPECT_CALL(*mockController, getDt()).Times(0);
-  EXPECT_CALL(*mockController, getCurrentControl(testing::_, testing::_, testing::_, testing::_, testing::_)).Times(0);
+  EXPECT_CALL(*mockController, getDt()).Times(2);
 
   plant->setLastUsedUpdateTime(0);
   plant->updateOdometry(pos, quat, vel, omega, 0.0);
@@ -385,9 +380,7 @@ TEST_F(BufferedPlantTest, updateOdometry)
   MockDynamics::state_array state = MockDynamics::state_array::Random();
 
   EXPECT_CALL(mockDynamics, stateFromMap(testing::_)).Times(2).WillRepeatedly(testing::Return(state));
-  // Controls never calculated so no calls to controller in updateState()
-  EXPECT_CALL(*mockController, getDt()).Times(0);
-  EXPECT_CALL(*mockController, getCurrentControl(testing::_, testing::_, testing::_, testing::_, testing::_)).Times(0);
+  EXPECT_CALL(*mockController, getDt()).Times(2);
 
   plant->setLastUsedUpdateTime(0.0);
   plant->updateOdometry(pos, quat, vel, omega, 0.0);
@@ -455,9 +448,7 @@ TEST_F(BufferedPlantTest, getInterpState)
 
   plant->setLastUsedUpdateTime(0.0);
   EXPECT_CALL(mockDynamics, stateFromMap(testing::_)).Times(2).WillRepeatedly(testing::Return(state));
-  // Controls never calculated so no calls to controller in updateState()
-  EXPECT_CALL(*mockController, getDt()).Times(0);
-  EXPECT_CALL(*mockController, getCurrentControl(testing::_, testing::_, testing::_, testing::_, testing::_)).Times(0);
+  EXPECT_CALL(*mockController, getDt()).Times(2);
 
   plant->updateOdometry(pos, quat, vel, omega, 0.0);
   plant->updateControls(u, 0.0);
@@ -518,9 +509,7 @@ TEST_F(BufferedPlantTest, getInterpBuffer)
 
   plant->setLastUsedUpdateTime(0.0);
   EXPECT_CALL(mockDynamics, stateFromMap(testing::_)).Times(2).WillRepeatedly(testing::Return(state));
-  // Controls never calculated so no calls to controller in updateState()
-  EXPECT_CALL(*mockController, getDt()).Times(0);
-  EXPECT_CALL(*mockController, getCurrentControl(testing::_, testing::_, testing::_, testing::_, testing::_)).Times(0);
+  EXPECT_CALL(*mockController, getDt()).Times(2);
 
   plant->updateOdometry(pos, quat, vel, omega, 0.0);
   plant->updateControls(u, 0.0);

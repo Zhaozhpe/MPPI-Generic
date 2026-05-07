@@ -411,13 +411,13 @@ __device__ __host__ void RACER::computeStaticSettling(TEX_T* tex_helper, const f
     height = (rear_left_height + rear_right_height) / 2.0f;
 
     // using 2pi so any rotation that accidently uses this will be using identity
-    if (!isfinite(roll) || fabsf(roll) > static_cast<float>(M_PI))
+    if (!isfinite(roll) || fabsf(roll) > M_PIf32)
     {
-      roll = static_cast<float>(2.0 * M_PI);
+      roll = 2.0f * M_PIf32;
     }
-    if (!isfinite(pitch) || fabsf(pitch) > static_cast<float>(M_PI))
+    if (!isfinite(pitch) || fabsf(pitch) > M_PIf32)
     {
-      pitch = static_cast<float>(2.0 * M_PI);
+      pitch = 2.0f * M_PIf32;
     }
     if (!isfinite(height))
     {

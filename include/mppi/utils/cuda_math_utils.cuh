@@ -5,8 +5,6 @@
 #ifndef MPPIGENERIC_CUDA_MATH_UTILS_CUH
 #define MPPIGENERIC_CUDA_MATH_UTILS_CUH
 
-#include <cassert>
-
 #ifndef __UNROLL
 #define __xstr__(s) __str__(s)
 #define __str__(s) #s

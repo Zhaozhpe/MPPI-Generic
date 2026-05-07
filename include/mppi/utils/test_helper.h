@@ -7,9 +7,6 @@
 #include <gtest/gtest.h>
 #include <Eigen/Dense>
 
-#include <array>
-#include <vector>
-
 inline void array_assert_float_eq(const std::vector<float>& known, const std::vector<float>& compute, int size)
 {
   ASSERT_EQ(compute.size(), size) << "The computed vector size is not the given size!";

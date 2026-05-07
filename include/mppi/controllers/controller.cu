@@ -64,7 +64,7 @@ void CONTROLLER::copySampledControlFromDevice(bool synchronize)
   std::vector<int> samples(num_sampled_trajectories);
   if (perc_sampled_control_trajectories_ > 0.98)
   {
-    // if above threshold just do everything
+    // if above threshold just do everything (copy in the same order): samples[i] -> 0-2047, when perc = 1
     std::iota(samples.begin(), samples.end(), 0);
   }
   else
@@ -74,6 +74,13 @@ void CONTROLLER::copySampledControlFromDevice(bool synchronize)
     samples = mppi::math::sample_without_replacement(num_sampled_trajectories, NUM_ROLLOUTS * 0.98);
   }
 
+  // Debug: Print the number of trajectories and the sampled indices.
+  // ROS_INFO("copySampledControlFromDevice: num_sampled_trajectories = %d", num_sampled_trajectories);
+  // for (int i = 0; i < num_sampled_trajectories; i++)
+  // {
+  //   ROS_INFO("Sample %d: %d", i, samples[i]);
+  // }
+
   // this explicitly adds the optimized control sequence
   HANDLE_ERROR(cudaMemcpyAsync(this->sampled_outputs_d_, this->output_.data(),
                                sizeof(float) * getNumTimesteps() * DYN_T::OUTPUT_DIM, cudaMemcpyHostToDevice,
@@ -82,6 +89,21 @@ void CONTROLLER::copySampledControlFromDevice(bool synchronize)
       //  this->sampled_noise_d_,
       this->sampler_->getVisControlSample(0, 0, 0), this->control_d_,
       sizeof(float) * getNumTimesteps() * DYN_T::CONTROL_DIM, cudaMemcpyDeviceToDevice, this->vis_stream_));
+
+  // Debug: After the first copy, inspect trajectory 0 in sampled_outputs_d_.
+  // {
+  //   std::vector<float> traj0(getNumTimesteps() * DYN_T::OUTPUT_DIM, 0.0f);
+  //   HANDLE_ERROR(cudaMemcpy(traj0.data(), this->sampled_outputs_d_,
+  //                             sizeof(float) * getNumTimesteps() * DYN_T::OUTPUT_DIM,
+  //                             cudaMemcpyDeviceToHost));
+  //   std::stringstream ss;
+  //   ss << "Trajectory 0 from sampled_outputs_d_: ";
+  //   // Print first few elements (for example, the first 10 floats).
+  //   for (int j = 0; j < std::min((int)traj0.size(), 10); j++) {
+  //     ss << traj0[j] << " ";
+  //   }
+  //   ROS_INFO("%s", ss.str().c_str());
+  // }
 
   for (int i = 1; i < num_sampled_trajectories; i++)
   {
@@ -99,6 +121,22 @@ void CONTROLLER::copySampledControlFromDevice(bool synchronize)
   {
     HANDLE_ERROR(cudaStreamSynchronize(this->vis_stream_));
   }
+  // Debug: Check the first few trajectories after the copy.
+  // for (int i = 0; i < std::min(num_sampled_trajectories, 3); i++)
+  // {
+  //   std::vector<float> traj(getNumTimesteps() * DYN_T::OUTPUT_DIM, 0.0f);
+  //   HANDLE_ERROR(cudaMemcpy(traj.data(), this->sampled_outputs_d_ + i * getNumTimesteps() * DYN_T::OUTPUT_DIM,
+  //                           sizeof(float) * getNumTimesteps() * DYN_T::OUTPUT_DIM,
+  //                           cudaMemcpyDeviceToHost));
+  //   std::stringstream ss;
+  //   ss << "Trajectory " << i << " from sampled_outputs_d_: ";
+  //   // Print first 10 values (or fewer if trajectory length is short)
+  //   for (int j = 0; j < std::min((int)traj.size(), 10); j++)
+  //   {
+  //     ss << traj[j] << " ";
+  //   }
+  //   ROS_INFO("%s", ss.str().c_str());
+  // }
 }
 
 CONTROLLER_TEMPLATE

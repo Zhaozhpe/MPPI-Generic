@@ -15,7 +15,6 @@ Header file for dynamics
 #include <stdio.h>
 #include <math.h>
 
-#include <array>
 #include <cfloat>
 #include <type_traits>
 #include <vector>
@@ -98,7 +97,12 @@ protected:
    */
   Dynamics(cudaStream_t stream = 0) : Managed(stream)
   {
-    setDefaultControlRanges();
+    // TODO handle at Managed
+    for (int i = 0; i < CONTROL_DIM; i++)
+    {
+      control_rngs_[i].x = -FLT_MAX;
+      control_rngs_[i].y = FLT_MAX;
+    }
   }
 
   /**
@@ -120,7 +124,6 @@ protected:
   Dynamics(PARAMS_T& params, cudaStream_t stream = 0) : Managed(stream)
   {
     setParams(params);
-    setDefaultControlRanges();
   }
 
 public:
@@ -516,9 +519,6 @@ protected:
   PARAMS_T params_;
 
   bool requires_buffer_ = false;
-
-private:
-  void setDefaultControlRanges();
 };
 
 #ifdef __CUDACC__

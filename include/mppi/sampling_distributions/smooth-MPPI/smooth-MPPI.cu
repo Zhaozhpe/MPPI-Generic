@@ -46,7 +46,7 @@ __global__ void shiftControlTrajectory(float* __restrict__ control_trajectory_d,
   for (int t = 0; t < num_timesteps; t++)
   {
     int write_index = t * control_dim;
-    int read_index = min(t + shift_index, num_timesteps - 1) * control_dim;
+    int read_index = min(t + shift_index, shift_index) * control_dim;
 
     // if (control_dim % 4 == 0)
     // {

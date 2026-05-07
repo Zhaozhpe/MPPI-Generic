@@ -22,7 +22,7 @@ void rk4integrate(DYN* dynamics, float dt, const Eigen::Ref<typename DYN::state_
   // dynamics->computeStateDeriv(x_k + k1 * dt / 2, u_k, k2);
   // dynamics->computeStateDeriv(x_k + k2 * dt / 2, u_k, k3);
   // dynamics->computeStateDeriv(x_k + k3 * dt, u_k, k4);
-  x_kp1 = x_k + (k1 + 2 * k2 + 2 * k3 + k4) * dt / 6;
+  x_kp1 = x_k + (k1 + 2 * k2 + 2 * k3 + k4) * dt / 2;
 }
 
 #endif  // MPPIGENERIC_NUMERICAL_INTEGRATION_H

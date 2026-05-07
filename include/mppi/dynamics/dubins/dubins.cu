@@ -1,4 +1,5 @@
 #include <mppi/dynamics/dubins/dubins.cuh>
+// #include <ros/ros.h>
 
 DubinsDynamics::DubinsDynamics(cudaStream_t stream) : Dynamics<DubinsDynamics, DubinsParams>(stream)
 {
@@ -11,6 +12,12 @@ void DubinsDynamics::computeDynamics(const Eigen::Ref<const state_array>& state,
   state_der(S_INDEX(POS_X)) = control(C_INDEX(VEL)) * cos(state(S_INDEX(YAW)));
   state_der(S_INDEX(POS_Y)) = control(C_INDEX(VEL)) * sin(state(S_INDEX(YAW)));
   state_der(S_INDEX(YAW)) = control(C_INDEX(YAW_RATE));
+
+  // // Debug logging: print input state, control, and the computed state derivative.
+  // ROS_INFO("DubinsDynamics::computeDynamics:\n  state = [%.3f, %.3f, %.3f]\n  control = [%.3f, %.3f]\n  state_der = [%.3f, %.3f, %.3f]",
+  //   state(S_INDEX(POS_X)), state(S_INDEX(POS_Y)), state(S_INDEX(YAW)),
+  //   control(C_INDEX(VEL)), control(C_INDEX(YAW_RATE)),
+  //   state_der(S_INDEX(POS_X)), state_der(S_INDEX(POS_Y)), state_der(S_INDEX(YAW)));
 }
 
 bool DubinsDynamics::computeGrad(const Eigen::Ref<const state_array>& state,

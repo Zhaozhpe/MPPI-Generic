@@ -53,7 +53,7 @@ void RacerDubinsElevationImpl<CLASS_T, PARAMS_T>::computeParametricAccelDeriv(
   state_der(S_INDEX(VEL_X)) = (!enable_brake) * throttle * this->params_.gear_sign + brake -
                               this->params_.c_v[index] * state(S_INDEX(VEL_X)) + this->params_.c_0;
   state_der(S_INDEX(VEL_X)) = min(max(state_der(S_INDEX(VEL_X)), -this->params_.clamp_ax), this->params_.clamp_ax);
-  if (fabsf(state[S_INDEX(PITCH)]) < static_cast<float>(M_PI_2))
+  if (fabsf(state[S_INDEX(PITCH)]) < M_PI_2f32)
   {
     state_der[S_INDEX(VEL_X)] -= this->params_.gravity * sinf(state[S_INDEX(PITCH)]);
   }
@@ -783,7 +783,7 @@ __device__ void RacerDubinsElevationImpl<CLASS_T, PARAMS_T>::computeParametricAc
     state_der[S_INDEX(VEL_X)] = (!enable_brake) * throttle * params_p->gear_sign + brake -
                                 params_p->c_v[index] * state[S_INDEX(VEL_X)] + params_p->c_0;
     state_der[S_INDEX(VEL_X)] = fminf(fmaxf(state_der[S_INDEX(VEL_X)], -params_p->clamp_ax), params_p->clamp_ax);
-    if (fabsf(state[S_INDEX(PITCH)]) < static_cast<float>(M_PI_2))
+    if (fabsf(state[S_INDEX(PITCH)]) < M_PI_2f32)
     {
       state_der[S_INDEX(VEL_X)] -= params_p->gravity * __sinf(angle_utils::normalizeAngle(state[S_INDEX(PITCH)]));
     }

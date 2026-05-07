@@ -10,7 +10,6 @@
 
 // Double check if these are included in mppi_common.h
 #include <Eigen/Dense>
-#include <unistd.h>
 #include <vector>
 #include <array>
 #include <chrono>
@@ -41,8 +40,6 @@ public:
   using COST_PARAMS_T = typename COST_T::COST_PARAMS_T;
   using TEMPLATED_CONTROLLER = CONTROLLER_T;
   using CONTROLLER_PARAMS_T = typename CONTROLLER_T::TEMPLATED_PARAMS;
-  using SAMPLER_T = typename CONTROLLER_T::TEMPLATED_SAMPLING;
-  using SAMPLER_PARAMS_T = typename CONTROLLER_T::TEMPLATED_SAMPLING_PARAMS;
 
   // Feedback related aliases
   using FB_STATE_T = typename CONTROLLER_T::TEMPLATED_FEEDBACK::TEMPLATED_FEEDBACK_STATE;
@@ -63,14 +60,11 @@ protected:
   std::mutex cost_params_guard_;
   CONTROLLER_PARAMS_T controller_params_;
   std::mutex controller_params_guard_;
-  SAMPLER_PARAMS_T sampler_params_;
-  std::mutex sampler_params_guard_;
 
   std::atomic<bool> has_new_dynamics_params_{ false };
   std::atomic<bool> has_new_cost_params_{ false };
   std::atomic<bool> has_new_controller_params_{ false };
-  std::atomic<bool> has_new_sampler_params_{ false };
-  std::atomic<bool> has_received_state_{ false };
+  std::atomic<bool> enabled_{ false };
 
   // Values needed
   s_array init_state_ = s_array::Zero();
@@ -291,7 +285,7 @@ public:
    * @param state the most recent state from state estimator
    * @param time the time of the most recent state from the state estimator
    */
-  virtual void updateState(Eigen::Ref<s_array> state, double time)
+  virtual void updateState(s_array& state, double time)
   {
     // calculate and update all timing variables
     double temp_last_state_update_time = last_used_state_update_time_;
@@ -300,9 +294,8 @@ public:
 
     state_ = state;
     state_time_ = time;
-    has_received_state_ = true;
 
-    if (num_iter_ == 0)
+    if (last_used_state_update_time_ < 0)
     {
       // we have not optimized yet so no reason to publish controls
       return;
@@ -338,10 +331,6 @@ public:
   {
     return has_new_controller_params_;
   };
-  virtual bool hasNewSamplerParams()
-  {
-    return has_new_sampler_params_;
-  };
 
   virtual DYN_PARAMS_T getNewDynamicsParams(bool set_flag = false)
   {
@@ -357,11 +346,6 @@ public:
   {
     has_new_controller_params_ = set_flag;
     return controller_params_;
-  }
-  virtual SAMPLER_PARAMS_T getNewSamplerParams(bool set_flag = false)
-  {
-    has_new_sampler_params_ = set_flag;
-    return sampler_params_;
   }
 
   virtual void setDynamicsParams(const DYN_PARAMS_T& params)
@@ -381,12 +365,6 @@ public:
     std::lock_guard<std::mutex> guard(controller_params_guard_);
     controller_params_ = params;
     has_new_controller_params_ = true;
-  }
-  virtual void setSamplerParams(const SAMPLER_PARAMS_T& params)
-  {
-    std::lock_guard<std::mutex> guard(sampler_params_guard_);
-    sampler_params_ = params;
-    has_new_sampler_params_ = true;
   }
 
   virtual void setLogger(const mppi::util::MPPILoggerPtr& logger)
@@ -444,14 +422,6 @@ public:
       CONTROLLER_PARAMS_T controller_params = getNewControllerParams();
       controller_->setParams(controller_params);
     }
-    // Update sampler params
-    if (hasNewSamplerParams())
-    {
-      std::lock_guard<std::mutex> guard(sampler_params_guard_);
-      changed = true;
-      SAMPLER_PARAMS_T sampler_params = getNewSamplerParams();
-      controller_->setSamplingParams(sampler_params);
-    }
     return changed;
   }
 
@@ -475,16 +445,13 @@ public:
     double temp_last_state_time = getStateTime();
     double temp_last_used_state_update_time = last_used_state_update_time_;
 
-    // If it is the first iteration and we have received state, we should not wait for timestamps to differ
-    bool skip_first_loop = num_iter_ == 0 && has_received_state_;
-
     // wait for a new state to compute control sequence from
-    while (temp_last_used_state_update_time == temp_last_state_time && !skip_first_loop && is_alive->load())
+    int counter = 0;
+    while (temp_last_used_state_update_time == temp_last_state_time && is_alive->load())
     {
       usleep(50);
       temp_last_state_time = getStateTime();
-      // In case when runControlIteration is ran before getting state and state time is specifically 0
-      skip_first_loop = num_iter_ == 0 && has_received_state_;
+      counter++;
     }
     if (!is_alive->load())
     {
@@ -519,7 +486,7 @@ public:
 
     // calculate how much we should slide the control sequence
     double dt = temp_last_state_time - temp_last_used_state_update_time;
-    if (num_iter_ == 0)
+    if (temp_last_used_state_update_time == -1)
     {  //
       // should only happen on the first iteration
       dt = 0;
@@ -550,21 +517,21 @@ public:
     {
       std::cerr << "ERROR: Nan in control inside plant" << std::endl;
       std::cerr << control_traj << std::endl;
-      throw std::runtime_error("Control Trajectory inside plant has a NaN");
+      exit(-1);
     }
     s_traj state_traj = controller_->getTargetStateSeq();
     if (!state_traj.allFinite())
     {
       std::cerr << "ERROR: Nan in state inside plant" << std::endl;
       std::cerr << state_traj << std::endl;
-      throw std::runtime_error("State Trajectory inside plant has a NaN");
+      exit(-1);
     }
     o_traj output_traj = controller_->getTargetOutputSeq();
-    if (!output_traj.allFinite())
+    if (!state_traj.allFinite())
     {
-      std::cerr << "ERROR: Nan in output inside plant" << std::endl;
-      std::cerr << output_traj << std::endl;
-      throw std::runtime_error("Output Trajectory inside plant has a NaN");
+      std::cerr << "ERROR: Nan in state inside plant" << std::endl;
+      std::cerr << state_traj << std::endl;
+      exit(-1);
     }
     optimization_duration_ = mppi::math::timeDiffms(std::chrono::steady_clock::now(), optimization_start);
 

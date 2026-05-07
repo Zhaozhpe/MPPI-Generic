@@ -3,10 +3,10 @@
  * Created by Bogdan on 11/01/2023
  */
 
+#include <cstdarg>
 #include <cstdio>
-#include <memory>
-#include <string>
 #include <vector>
+#include <memory>
 
 namespace mppi
 {
@@ -89,127 +89,91 @@ public:
   }
 
   /**
-   * @brief Log debug messages using virtual debug_impl() method
-   *
-   * @tparam ...Args  variadic template type of args used in the format string
-   * @param fmt       format string used in printf
-   * @param args      extra args used by the format string fmt
+   * @brief       Log debug messages to the output stream in green if the log level is set for DEBUG
+   * @param fmt   Format string (if additional arguments are passed) or message to display
    */
-  template <typename... Args>
-  void debug(const char* fmt, Args const&... args)
+  virtual void debug(const char* fmt, ...)
   {
-    std::string message = format_string(fmt, args...);
-    this->debug_impl(message);
+    if (log_level_ <= LOG_LEVEL::DEBUG)
+    {
+      std::va_list argptr;
+      va_start(argptr, fmt);
+      surround_fprintf(output_stream_, GREEN, RESET, fmt, argptr);
+      va_end(argptr);
+    }
   }
 
   /**
-   * @brief Log info messages using virtual info_impl() method
-   *
-   * @tparam ...Args  variadic template type of args used in the format string
-   * @param fmt       format string used in printf
-   * @param args      extra args used by the format string fmt
+   * @brief       Log info messages to the output stream in cyan if the log level is set for INFO
+   * @param fmt   Format string (if additional arguments are passed) or message to display
    */
-  template <typename... Args>
-  void info(const char* fmt, Args const&... args)
+  virtual void info(const char* fmt, ...)
   {
-    std::string message = format_string(fmt, args...);
-    this->info_impl(message);
+    if (log_level_ <= LOG_LEVEL::INFO)
+    {
+      std::va_list argptr;
+      va_start(argptr, fmt);
+      surround_fprintf(output_stream_, CYAN, RESET, fmt, argptr);
+      va_end(argptr);
+    }
   }
 
   /**
-   * @brief Log warning messages using virtual warning_impl() method
-   *
-   * @tparam ...Args  variadic template type of args used in the format string
-   * @param fmt       format string used in printf
-   * @param args      extra args used by the format string fmt
+   * @brief       Log debug messages to the output stream in yellow if the log level is set for WARNING
+   * @param fmt   Format string (if additional arguments are passed) or message to display
    */
-  template <typename... Args>
-  void warning(const char* fmt, Args const&... args)
+  virtual void warning(const char* fmt, ...)
   {
-    std::string message = format_string(fmt, args...);
-    this->warning_impl(message);
+    if (log_level_ <= LOG_LEVEL::WARNING)
+    {
+      std::va_list argptr;
+      va_start(argptr, fmt);
+      surround_fprintf(output_stream_, YELLOW, RESET, fmt, argptr);
+      va_end(argptr);
+    }
   }
 
   /**
-   * @brief Log errror messages using virtual errror_impl() method
-   *
-   * @tparam ...Args  variadic template type of args used in the format string
-   * @param fmt       format string used in printf
-   * @param args      extra args used by the format string fmt
+   * @brief       Log debug messages to the output stream in red if the log level is set for ERROR
+   * @param fmt   Format string (if additional arguments are passed) or message to display
    */
-  template <typename... Args>
-  void error(const char* fmt, Args const&... args)
+  virtual void error(const char* fmt, ...)
   {
-    std::string message = format_string(fmt, args...);
-    this->error_impl(message);
+    if (log_level_ <= LOG_LEVEL::ERROR)
+    {
+      std::va_list argptr;
+      va_start(argptr, fmt);
+      surround_fprintf(output_stream_, RED, RESET, fmt, argptr);
+      va_end(argptr);
+    }
   }
 
 protected:
   LOG_LEVEL log_level_ = GLOBAL_LOG_LEVEL;
   std::FILE* output_stream_ = stdout;
 
-  virtual void debug_impl(const std::string& message)
-  {
-    if (log_level_ <= LOG_LEVEL::DEBUG)
-    {
-      surround_fprintf(output_stream_, GREEN, RESET, message);
-    }
-  }
-
-  virtual void info_impl(const std::string& message)
-  {
-    if (log_level_ <= LOG_LEVEL::INFO)
-    {
-      surround_fprintf(output_stream_, CYAN, RESET, message);
-    }
-  }
-
-  virtual void warning_impl(const std::string& message)
-  {
-    if (log_level_ <= LOG_LEVEL::WARNING)
-    {
-      surround_fprintf(output_stream_, YELLOW, RESET, message);
-    }
-  }
-
-  virtual void error_impl(const std::string& message)
-  {
-    if (log_level_ <= LOG_LEVEL::ERROR)
-    {
-      surround_fprintf(output_stream_, RED, RESET, message);
-    }
-  }
-
   /**
-   * @brief Print message to stream with coloring defined by prefix
+   * @brief Prints a colored output to a provided fstream. It does this by first creating the formatted string
+   * as a std::vector<char> so that it can be used as an input to fprintf with a different format string
    *
-   * @param fstream  where the message will be printed to
-   * @param prefix   prefix string to print before message. Expected to be a color code
-   * @param suffix   suffix string to print after message. Expected to be a color reset code
-   * @param message  actual message to be printed
+   * @param fstream   file stream to write output to
+   * @param color     color code to use on provided string
+   * @param fmt       format string
+   * @param ...       extra variables for format string
    */
-  virtual void surround_fprintf(std::FILE* fstream, const char* prefix, const char* suffix, const std::string& message)
+  virtual void surround_fprintf(std::FILE* fstream, const char* prefix, const char* suffix, const char* fmt,
+                                std::va_list args)
   {
-    std::fprintf(fstream, "%s%s%s", prefix, message.c_str(), suffix);
-  }
-
-  /**
-   * @brief create a string out of format string and variable number of additional arguments
-   *
-   * @tparam ...Args  variadic template type for extra arguments passed to format_string()
-   * @param fmt       format string defining how to display additional arguments
-   * @param args      additional arguments for formatting
-   *
-   * @return          std::string containing formatted text
-   */
-  template <typename... Args>
-  std::string format_string(const char* fmt, Args const&... args)
-  {
-    // figure out size of formatted string
-    std::vector<char> buf(1 + std::snprintf(nullptr, 0, fmt, args...));
-    // Fill buffer with formatted string
-    std::snprintf(buf.data(), buf.size(), fmt, args...);
-    return std::string(buf.data());
+    // introducing a second copy of the args as calling vsnprintf leaves args in an indeterminate state
+    std::va_list args_cpy;
+    va_copy(args_cpy, args);
+    // figure out size of formatted string, also uses up args
+    std::vector<char> buf(1 + std::vsnprintf(nullptr, 0, fmt, args));
+    // Fill buffer with formatted string using copy of the args
+    std::vsnprintf(buf.data(), buf.size(), fmt, args_cpy);
+    va_end(args_cpy);
+    // print formatted string but colored
+    std::fprintf(fstream, "%s%s%s", prefix, buf.data(), suffix);
   }
 };
 

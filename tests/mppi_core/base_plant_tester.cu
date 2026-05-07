@@ -181,7 +181,7 @@ TEST_F(BasePlantTest, Constructor)
   EXPECT_EQ(plant->getHz(), 20);
   EXPECT_EQ(plant->getTargetOptimizationStride(), 1);
   EXPECT_EQ(plant->getNumIter(), 0);
-  EXPECT_EQ(plant->getLastUsedPoseUpdateTime(), 0);
+  EXPECT_EQ(plant->getLastUsedPoseUpdateTime(), -1);
   EXPECT_EQ(plant->getStatus(), 1);
   EXPECT_EQ(mockController->getFeedbackEnabled(), false);
   EXPECT_EQ(plant->hasNewCostParams(), false);
@@ -275,6 +275,7 @@ TEST_F(BasePlantTest, updateParametersAllTrue)
 
 TEST_F(BasePlantTest, updateStateOutsideTimeTest)
 {
+  mockController->setDt(DT);
   plant->setLastTime(0);
 
   EXPECT_CALL(*mockController, getCurrentControl(testing::_, testing::_, testing::_, testing::_, testing::_)).Times(0);
@@ -292,6 +293,7 @@ TEST_F(BasePlantTest, updateStateOutsideTimeTest)
 
 TEST_F(BasePlantTest, updateStateTest)
 {
+  mockController->setDt(DT);
   plant->setLastTime(0);
 
   MockController::state_array state = MockController::state_array::Zero();
@@ -301,78 +303,14 @@ TEST_F(BasePlantTest, updateStateTest)
   EXPECT_EQ(plant->pubControlCalled, 0);
   EXPECT_EQ(plant->pubNominalStateCalled, 0);
 
-  // Calling updateState() should not pub controls when none have been calculated as of yet
-  EXPECT_CALL(*mockController, getCurrentControl(testing::_, testing::_, testing::_, testing::_, testing::_)).Times(0);
+  EXPECT_CALL(*mockController, getCurrentControl(testing::_, testing::_, testing::_, testing::_, testing::_)).Times(1);
   plant->setLastUsedTime(11);
   plant->updateState(state, 12);
   EXPECT_EQ(plant->getState(), state);
-  EXPECT_EQ(plant->pubControlCalled, 0);
+  EXPECT_EQ(plant->pubControlCalled, 1);
   EXPECT_EQ(plant->pubNominalStateCalled, 0);
 
   // TODO in debug should pub nominal state
-}
-
-TEST_F(BasePlantTest, pubControlOnlyAfterControlAreCalculatedTest)
-{
-  ::testing::Sequence s1;
-  // Step 1: calling updateState() before controls are calculated should not call controller->getCurrentControl()
-  MockController::state_array state = MockController::state_array::Zero();
-  EXPECT_CALL(*mockController, getCurrentControl(testing::_, testing::_, testing::_, testing::_, testing::_))
-      .Times(0)
-      .InSequence(s1);
-  double curr_time = 0.0;
-  plant->updateState(state, curr_time);
-  EXPECT_EQ(plant->pubControlCalled, 0);
-  EXPECT_EQ(plant->pubNominalStateCalled, 0);
-  // ::testing::Mock::VerifyAndClearExpectations(mockController.get());
-
-  // Step 2: run control iteration inside plant
-  // Create valid outputs from gmock methods to prevent nan detection from triggering
-  MockController::control_trajectory valid_control_seq =
-      MockController::control_trajectory::Zero(MockDynamics::CONTROL_DIM, NUM_TIMESTEPS);
-  MockController::state_trajectory valid_state_seq =
-      MockController::state_trajectory::Zero(MockDynamics::STATE_DIM, NUM_TIMESTEPS);
-  EXPECT_CALL(*mockController, computeControl(testing::_, testing::_)).Times(1).InSequence(s1);
-  EXPECT_CALL(*mockController, getControlSeq()).Times(1).WillRepeatedly(testing::Return(valid_control_seq));
-  EXPECT_CALL(*mockController, getTargetStateSeq()).Times(1).WillRepeatedly(testing::Return(valid_state_seq));
-  // EXPECT_CALL(*mockController, getTargetOutputSeq()).Times(1);
-  std::atomic<bool> is_alive(true);
-  plant->runControlIteration(&is_alive);
-
-  // Step 3: calling updateState() now should use controller->getCurrentControl()
-  EXPECT_CALL(*mockController, getCurrentControl(testing::_, testing::_, testing::_, testing::_, testing::_))
-      .Times(1)
-      .InSequence(s1);
-  curr_time++;
-  plant->updateState(state, curr_time);
-  EXPECT_EQ(plant->pubControlCalled, 1);
-  EXPECT_EQ(plant->pubNominalStateCalled, 0);
-}
-
-TEST_F(BasePlantTest, EnsureReceivingStateCompletesRunControlIterationTest)
-{
-  std::atomic<bool> is_alive(true);
-  // Create valid outputs from gmock methods to prevent nan detection from triggering
-  MockController::control_trajectory valid_control_seq =
-      MockController::control_trajectory::Zero(MockDynamics::CONTROL_DIM, NUM_TIMESTEPS);
-  MockController::state_trajectory valid_state_seq =
-      MockController::state_trajectory::Zero(MockDynamics::STATE_DIM, NUM_TIMESTEPS);
-  EXPECT_CALL(*mockController, computeControl(testing::_, testing::_)).Times(1);
-  EXPECT_CALL(*mockController, getControlSeq()).Times(1).WillRepeatedly(testing::Return(valid_control_seq));
-  EXPECT_CALL(*mockController, getTargetStateSeq()).Times(1).WillRepeatedly(testing::Return(valid_state_seq));
-  // EXPECT_CALL(*mockController, getTargetOutputSeq()).Times(1);
-  std::thread new_thread(&MockTestPlant::runControlIteration, plant.get(), &is_alive);
-  // Wait some period of time and then call updateState()
-  std::cout << "Wait for new state" << std::endl;
-  std::this_thread::sleep_for(std::chrono::milliseconds(300));
-  EXPECT_CALL(*mockController, getCurrentControl(testing::_, testing::_, testing::_, testing::_, testing::_)).Times(0);
-  MockController::state_array state = MockController::state_array::Zero();
-  double curr_time = 0.0;
-  plant->updateState(state, curr_time);
-  std::cout << "State sent" << std::endl;
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  // is_alive.store(false);
-  new_thread.join();
 }
 
 TEST_F(BasePlantTest, runControlIterationStoppedTest)

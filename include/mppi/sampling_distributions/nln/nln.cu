@@ -74,7 +74,7 @@ void NLN_NOISE::setParams(const SAMPLING_PARAMS_T& params, bool synchronize)
   bool adjusted_variance = false;
   for (int i = 0; i < this->CONTROL_DIM * this->getNumDistributions(); i++)
   {
-    if (this->params_.std_dev[i] != params.std_dev[i])
+    if (this->params.std_dev[i] != params.std_dev[i])
     {
       adjusted_variance = true;
       break;
@@ -97,8 +97,7 @@ void NLN_NOISE::calculateLogMeanAndVariance()
   {
     normal_variance = this->params_.std_dev[i] * this->params_.std_dev[i];
     log_noise_mean_[i] = expf(0.5 * normal_variance);
-    float exp_normal_variance = expf(normal_variance);
-    log_variance = exp_normal_variance * (exp_normal_variance - 1.0f);
+    log_variance = expf(normal_variance) * expf(normal_variance - 1.0f);
     log_noise_std_dev_[i] = sqrtf(log_variance);
   }
 }

@@ -75,16 +75,6 @@ public:
     buffer_.clearBuffers();
   }
 
-  double getBufferDt() const
-  {
-    return buffer_dt_;
-  }
-
-  void setBufferDt(const double buff_dt)
-  {
-    buffer_dt_ = buff_dt;
-  }
-
 protected:
   Buffer<typename CONTROLLER_T::TEMPLATED_DYNAMICS> buffer_;
 
@@ -92,5 +82,9 @@ protected:
   double buffer_tau_ = 1.0;           // how in history to create well sampled positions from
   double buffer_dt_ = 0.02;           // the spacing between well sampled buffer positions
 };
+
+template class BufferMessage<Eigen::Vector3f>;
+template class BufferMessage<Eigen::Quaternionf>;
+template class BufferMessage<float>;
 
 #endif  // MPPIGENERIC_BUFFERED_PLANT_H

@@ -26,23 +26,23 @@ TEST(AngleUtils, normalizeAngleKnownDouble)
 
 TEST(AngleUtils, normalizeAngleKnownFloat)
 {
-  float angle = 0.5f;
-  EXPECT_FLOAT_EQ(angle_utils::normalizeAngle(angle), 0.5f);
+  float angle = 0.5;
+  EXPECT_FLOAT_EQ(angle_utils::normalizeAngle(angle), 0.5);
 
-  angle = static_cast<float>(M_PI_2);
-  EXPECT_FLOAT_EQ(angle_utils::normalizeAngle(angle), static_cast<float>(M_PI_2));
+  angle = M_PI_2;
+  EXPECT_FLOAT_EQ(angle_utils::normalizeAngle(angle), M_PI_2f32);
 
-  angle = static_cast<float>(M_PI);
-  EXPECT_FLOAT_EQ(angle_utils::normalizeAngle(angle), static_cast<float>(M_PI));
+  angle = M_PI;
+  EXPECT_FLOAT_EQ(angle_utils::normalizeAngle(angle), M_PIf32);
 
-  angle = -static_cast<float>(M_PI);
-  EXPECT_FLOAT_EQ(angle_utils::normalizeAngle(angle), static_cast<float>(M_PI));
+  angle = -M_PI;
+  EXPECT_FLOAT_EQ(angle_utils::normalizeAngle(angle), M_PIf32);
 
-  angle = -static_cast<float>(M_PI) * 3.0f + 1e-3f;
-  EXPECT_FLOAT_EQ(angle_utils::normalizeAngle(angle), -static_cast<float>(M_PI) + 1e-3f);
+  angle = -M_PIf32 * 3 + 1e-3;
+  EXPECT_FLOAT_EQ(angle_utils::normalizeAngle(angle), -M_PIf32 + 1e-3);
 
-  angle = static_cast<float>(M_PI) * 8.0f;
-  EXPECT_NEAR(angle_utils::normalizeAngle(angle), 0.0f, 1e-6);
+  angle = M_PI * 8;
+  EXPECT_NEAR(angle_utils::normalizeAngle(angle), 0, 1e-6);
 }
 
 TEST(AngleUtils, normalizeAngleRandom)
